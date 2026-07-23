@@ -237,7 +237,7 @@ export const Landing: React.FC = () => {
                   <div className="flex items-center justify-between px-2 pt-1 text-xs">
                     <div className="flex items-center gap-2">
                       <span className="text-text-faint">Live Preview:</span>
-                      <SlugChip slug={generatedSlug} domain="shortify.to/" dimmed showCopy={false} />
+                      <SlugChip slug={generatedSlug} dimmed showCopy={false} />
                     </div>
                     <span className="text-text-faint text-[11px]">Free tier: unlimited creation</span>
                   </div>
@@ -265,7 +265,7 @@ export const Landing: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 bg-surface rounded-lg border border-border">
                     <div className="space-y-1">
                       <p className="text-[11px] text-text-faint truncate max-w-xs">{inputUrl}</p>
-                      <SlugChip slug={generatedSlug} domain="shortify.to/" showCopy={true} />
+                      <SlugChip slug={generatedSlug} showCopy={true} />
                     </div>
                     <Link
                       to="/register"

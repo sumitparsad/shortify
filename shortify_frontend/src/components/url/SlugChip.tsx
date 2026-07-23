@@ -13,19 +13,27 @@ interface SlugChipProps {
 
 export const SlugChip: React.FC<SlugChipProps> = ({
   slug,
-  domain = "shortify.to/",
-  fullUrl,
+  domain,
   className,
   showCopy = true,
   dimmed = false,
 }) => {
   const [copied, setCopied] = useState(false)
 
+  // Dynamically derive host domain from window.location.host or VITE_SHORT_URL_BASE
+  const activeHost = import.meta.env.VITE_SHORT_URL_BASE
+    ? import.meta.env.VITE_SHORT_URL_BASE.replace(/^https?:\/\//, "")
+    : typeof window !== "undefined"
+    ? window.location.host
+    : "shortify.to"
+
+  const displayDomain = domain || `${activeHost}/`
+  const textToCopy = typeof window !== "undefined" ? `${window.location.protocol}//${activeHost}/${slug}` : `${displayDomain}${slug}`
+
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
 
-    const textToCopy = fullUrl || `${domain.replace(/\/$/, "")}/${slug}`
     try {
       await navigator.clipboard.writeText(textToCopy)
       setCopied(true)
@@ -53,10 +61,10 @@ export const SlugChip: React.FC<SlugChipProps> = ({
         dimmed && "opacity-60",
         className
       )}
-      title={showCopy ? "Click to copy link" : undefined}
+      title={showCopy ? `Click to copy ${textToCopy}` : undefined}
     >
       <div className="flex items-center overflow-hidden">
-        <span className="text-text-faint font-normal">{domain}</span>
+        <span className="text-text-faint font-normal">{displayDomain}</span>
         <span className="text-text-primary font-medium">{slug}</span>
       </div>
 

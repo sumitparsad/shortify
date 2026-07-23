@@ -21,6 +21,17 @@ async def lifespan(app: FastAPI):
     """App lifespan: startup -> yield -> shutdown."""
     configure_logging(settings.ENVIRONMENT)
     logger.info("Starting Shortify API", environment=settings.ENVIRONMENT, base_url=settings.BASE_URL)
+
+    # Auto-create missing database tables in PostgreSQL if not present
+    try:
+        from app.core.database import engine, Base
+        import app.models  # Ensure models are loaded
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database schema verified")
+    except Exception as e:
+        logger.error("Database schema verification failed", error=str(e))
+
     try:
         redis = await get_redis_pool()
         await redis.ping()

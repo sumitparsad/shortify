@@ -119,7 +119,7 @@ export const CreateUrlDialog: React.FC<CreateUrlDialogProps> = ({ isOpen, onClos
               Custom Alias <span className="text-text-faint">(Optional)</span>
             </label>
             <div className="flex items-center gap-1 bg-bg border border-border rounded-md px-3 py-2 text-xs font-mono">
-              <span className="text-text-faint select-none">shortify.to/</span>
+              <span className="text-text-faint select-none">your-domain/</span>
               <input
                 {...register("custom_alias")}
                 type="text"

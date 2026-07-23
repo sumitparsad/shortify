@@ -105,3 +105,13 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
 }
+
+/* Hide native browser password reveal icon (Edge/Chrome/IE) — we use our own */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-contacts-auto-fill-button,
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}

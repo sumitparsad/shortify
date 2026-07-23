@@ -1,105 +1,132 @@
-# Shortify — Modern Link Infrastructure & Analytics Platform
+# Shortify — Link Management & Analytics Platform
 
-Shortify is a high-performance URL shortening, custom domain alias branding, and real-time click analytics application engineered with React 19, TypeScript, Vite, Tailwind CSS, FastAPI, PostgreSQL, and Redis.
+Shortify is a full-stack URL shortening and analytics platform. Create short links with custom aliases, track click analytics in real time, generate QR codes, and manage link expiration — all from a clean, modern dashboard.
 
-> **Developer & Author**: [Sumit Parsad](https://github.com/SumitParsad)  
-> **Version**: 1.0.0
+> **Built by**: [Sumit Parsad](https://github.com/SumitParsad) © 2026
 
 ---
 
-## ✨ Key Features
+## ✨ Features
 
-- **High-Speed Link Redirection**: Fast 302 redirection served directly from Redis caching before database lookups.
-- **Custom Alias Branding**: Create auto-generated 8-character unique slugs or specify custom domain aliases (`shortify.to/my-alias`).
-- **Tokenized Search & Filtering**: Multi-field search across title, short URL, destination URL, and custom slug with status filter pills (*All Links*, *Active*, *Inactive*).
-- **Real-Time Click Analytics**: Interactive dashboard visualizations featuring click volume breakdown, top performing link leaderboards, device classification, browser breakdowns, and geolocation insights.
-- **Vector QR Code Studio**: Client-side high-resolution vector QR code export for digital and print campaigns.
-- **Link Status & Expiration Governance**: Set expiration dates on temporary links or activate/deactivate links anytime without deleting historical statistics.
-- **Claude AI Aesthetic System**: Dual-theme engine supporting **System** (OS auto-detection), **Claude Alabaster Light** (warm porcelain ivory), and **Obsidian Dark** modes.
-- **URL Normalization**: Automatic protocol prepend (`google.com` ➔ `https://google.com`), internal whitespace rejection, and `type="url"` accessibility.
+- **Fast Link Redirection** — Redis-cached 302 redirects before any database lookup
+- **Custom Alias Slugs** — Auto-generated 8-character slugs or user-defined custom aliases
+- **Real-Time Click Analytics** — Click volume charts, device breakdown, browser breakdown, geolocation insights, and top link leaderboards
+- **Vector QR Code Export** — Client-side SVG/PNG QR code generation for any short link
+- **Link Expiration & Status Control** — Set expiration dates or toggle links active/inactive without losing analytics history
+- **Multi-Field Search & Filtering** — Search by title, slug, or destination URL with status filter pills
+- **Dual Theme Engine** — System auto, warm light (Claude Alabaster), and dark (Obsidian) modes
+- **URL Normalization** — Auto-prepends `https://` so users never need to type it
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Framework**: React 19 + TypeScript (`verbatimModuleSyntax`)
-- **Build Tool**: Vite 6
-- **Styling**: Tailwind CSS v4 + Google Fonts (*Outfit*, *Inter*, *JetBrains Mono*)
-- **State & Caching**: TanStack Query v5 + Zustand (with `persist` middleware)
-- **Icons**: Lucide React
-- **Notifications**: Sonner
+| Layer | Technology |
+| :--- | :--- |
+| Framework | React 19 + TypeScript |
+| Build | Vite 6 |
+| Styling | Tailwind CSS v4 |
+| State & Cache | Zustand + TanStack Query v5 |
+| Fonts | Outfit, Inter, JetBrains Mono |
+| Icons | Lucide React |
 
 ### Backend
-- **Framework**: FastAPI (Python 3.11+)
-- **Database**: PostgreSQL + AsyncSQLAlchemy + Alembic
-- **Cache & Rate Limiting**: Redis
-- **Validation**: Pydantic v2
-- **Authentication**: PyJWT + Passlib (Bcrypt)
+| Layer | Technology |
+| :--- | :--- |
+| API | FastAPI (Python 3.11+) |
+| Database | PostgreSQL + AsyncSQLAlchemy |
+| Migrations | Alembic |
+| Cache | Redis |
+| Auth | Bcrypt + PyJWT |
+| Validation | Pydantic v2 |
 
 ---
 
 ## 📁 Repository Structure
 
-```text
+```
 shortify/
-├── shortify_frontend/   # React 19 + TypeScript + Vite + Tailwind CSS Web App
-└── shortify_backend/    # FastAPI + PostgreSQL + Redis Microservice
+├── shortify_frontend/    # React 19 + Vite web app
+└── shortify_backend/     # FastAPI + PostgreSQL + Redis API
 ```
 
 ---
 
-## 🚀 How to Setup Locally
+## 🚀 Local Setup
 
-### 1. Backend Setup (`/shortify_backend`)
+### Backend
 
 ```bash
 cd shortify_backend
 
-# Create & activate virtual environment
+# Create virtual environment
 python -m venv venv
-# Windows:
-.\venv\Scripts\activate
-# Linux/macOS:
-source venv/bin/activate
+.\venv\Scripts\activate        # Windows
+source venv/bin/activate       # macOS / Linux
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Configure environment variables
-cp .env.example .env
+# Set environment variables
+cp .env.example .env           # Fill in your values
 
-# Apply database migrations
+# Run database migrations
 alembic upgrade head
 
-# Start FastAPI dev server
+# Start dev server
 uvicorn app.main:app --reload --port 8000
 ```
 
-FastAPI interactive documentation available at `http://localhost:8000/docs`.
+API docs available at `http://localhost:8000/docs`.
 
-### 2. Frontend Setup (`/shortify_frontend`)
+### Frontend
 
 ```bash
 cd shortify_frontend
 
-# Install dependencies
 npm install
 
-# Configure environment variables
-cp .env.example .env.local
+cp .env.example .env.local     # Fill in VITE_API_BASE_URL and VITE_SHORT_URL_BASE
 
-# Start development server
 npm run dev
 ```
 
-Frontend application available at `http://localhost:5173`.
+App available at `http://localhost:5173`.
 
 ---
 
-## 🌐 Free Production Deployment Stack
+## 🌐 Environment Variables
 
-- **Frontend**: Deployed on **Vercel** (Root: `shortify_frontend`)
-- **Backend API**: Deployed on **Render.com** (Root: `shortify_backend`)
-- **Database**: Serverless PostgreSQL on **Neon.tech**
-- **Redis Cache**: Serverless Redis on **Upstash.com**
+### Backend (`.env`)
+
+| Variable | Description |
+| :--- | :--- |
+| `DATABASE_HOSTNAME` | PostgreSQL host |
+| `DATABASE_PORT` | PostgreSQL port (default: `5432`) |
+| `DATABASE_USERNAME` | PostgreSQL user |
+| `DATABASE_PASSWORD` | PostgreSQL password |
+| `DATABASE_NAME` | PostgreSQL database name |
+| `REDIS_URL` | Redis connection URL |
+| `SECRET_KEY` | Random 32+ char string for session signing |
+| `ALGORITHM` | JWT algorithm (default: `HS256`) |
+| `BASE_URL` | Public base URL of your backend (e.g. `https://api.onrender.com`) |
+| `ENVIRONMENT` | `development` or `production` |
+| `CORS_ORIGINS` | Allowed frontend origins (e.g. `https://your-app.vercel.app`) |
+
+### Frontend (`.env.local`)
+
+| Variable | Description |
+| :--- | :--- |
+| `VITE_API_BASE_URL` | Backend API base URL (e.g. `https://api.onrender.com/api/v1`) |
+| `VITE_SHORT_URL_BASE` | Backend public base URL used for link previews on landing page |
+
+---
+
+## 🚢 Deployment (Free Tier)
+
+| Service | Provider | Purpose |
+| :--- | :--- | :--- |
+| Frontend | [Vercel](https://vercel.com) | Root: `shortify_frontend` |
+| Backend API | [Render.com](https://render.com) | Root: `shortify_backend` |
+| PostgreSQL | [Neon.tech](https://neon.tech) | Serverless Postgres |
+| Redis | [Upstash.com](https://upstash.com) | Serverless Redis |

@@ -17,15 +17,6 @@ interface UrlCardProps {
 export const UrlCard: React.FC<UrlCardProps> = ({ url, onSelect, onEdit, onDelete }) => {
   const updateMutation = useUpdateUrl()
 
-  const activeHost = import.meta.env.VITE_SHORT_URL_BASE
-    ? import.meta.env.VITE_SHORT_URL_BASE.replace(/^https?:\/\//, "")
-    : typeof window !== "undefined"
-    ? window.location.host
-    : "shortify.to"
-
-  const shortDomain = `${activeHost}/`
-  const clientFullUrl = typeof window !== "undefined" ? `${window.location.protocol}//${activeHost}/${url.slug}` : `https://${activeHost}/${url.slug}`
-
   const handleToggleActive = (e: React.MouseEvent) => {
     e.stopPropagation()
     updateMutation.mutate({
@@ -70,7 +61,6 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onSelect, onEdit, onDelet
             isCustomAlias={url.is_custom_alias}
           />
 
-          {/* Quick Toggle Active Button */}
           <button
             onClick={handleToggleActive}
             disabled={updateMutation.isPending}
@@ -85,9 +75,9 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onSelect, onEdit, onDelet
             <span>{url.is_active ? "Deactivate" : "Activate"}</span>
           </button>
 
-          {/* Action Quick Buttons */}
           <div className="flex items-center gap-1">
-            <QrCodeButton url={clientFullUrl} slug={url.slug} />
+            {/* short_url from API is the source of truth */}
+            <QrCodeButton url={url.short_url} slug={url.slug} />
 
             {onEdit && (
               <button
@@ -121,7 +111,8 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onSelect, onEdit, onDelet
       {/* Body: SlugChip & Meta */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/40">
         <div onClick={(e) => e.stopPropagation()}>
-          <SlugChip slug={url.slug} domain={shortDomain} />
+          {/* Use short_url from API directly — always correct */}
+          <SlugChip fullUrl={url.short_url} />
         </div>
 
         <div className="flex items-center gap-4 text-xs text-text-muted">

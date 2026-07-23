@@ -39,7 +39,9 @@ export const DeleteUrlAlert: React.FC<DeleteUrlAlertProps> = ({
         <div className="space-y-1">
           <h3 className="font-display font-medium text-lg text-text-primary">Delete Short Link?</h3>
           <p className="text-xs text-text-muted">
-            Are you sure you want to delete <span className="font-mono text-accent">shortify.to/{url.slug}</span>? This action can be undone by an administrator.
+            Are you sure you want to permanently delete{" "}
+            <span className="font-mono text-accent">{url.short_url}</span>?{" "}
+            This cannot be undone.
           </p>
         </div>
 

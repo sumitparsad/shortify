@@ -65,7 +65,7 @@ export const QrCodeButton: React.FC<QrCodeButtonProps> = ({ url, slug }) => {
 
             <div className="space-y-1">
               <h3 className="font-display font-medium text-base text-text-primary">QR Code</h3>
-              <p className="text-xs font-mono text-text-muted">shortify.to/{slug}</p>
+              <p className="text-xs font-mono text-text-muted">{url}</p>
             </div>
 
             {/* QR SVG */}

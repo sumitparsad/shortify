@@ -63,7 +63,7 @@ export const EditUrlDialog: React.FC<EditUrlDialogProps> = ({ url, isOpen, onClo
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display font-medium text-lg text-text-primary">Edit Short Link</h2>
-            <p className="text-xs font-mono text-text-muted">shortify.to/{url.slug}</p>
+            <p className="text-xs font-mono text-text-muted">{url.short_url}</p>
           </div>
 
           <button

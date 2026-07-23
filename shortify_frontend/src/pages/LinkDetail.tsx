@@ -33,13 +33,7 @@ export const LinkDetail: React.FC = () => {
   const { data: analytics, isLoading: isAnalyticsLoading } = useUrlAnalytics(slug || "")
 
   const isLoading = isUrlLoading || isAnalyticsLoading
-  const activeHost = import.meta.env.VITE_SHORT_URL_BASE
-    ? import.meta.env.VITE_SHORT_URL_BASE.replace(/^https?:\/\//, "")
-    : typeof window !== "undefined"
-    ? window.location.host
-    : "shortify.to"
-
-  const shortDomain = `${activeHost}/`
+  // short_url is the source of truth — comes directly from the API response
 
   return (
     <AppShell>
@@ -104,7 +98,7 @@ export const LinkDetail: React.FC = () => {
               </div>
 
               <div className="pt-2">
-                <SlugChip slug={urlData.slug} domain={shortDomain} fullUrl={urlData.short_url} />
+                <SlugChip fullUrl={urlData.short_url} />
               </div>
             </div>
 

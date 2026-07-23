@@ -58,6 +58,12 @@ export const Landing: React.FC = () => {
 
   const generatedSlug = useCustom && customAlias.trim() ? customAlias.trim() : "x7Kq2p"
 
+  // For landing page demo only — uses VITE_SHORT_URL_BASE env (the backend URL)
+  const demoBase = import.meta.env.VITE_SHORT_URL_BASE
+    ? import.meta.env.VITE_SHORT_URL_BASE.replace(/\/$/, "")
+    : "https://shortify-demo.vercel.app"
+  const demoFullUrl = `${demoBase}/${generatedSlug}`
+
   return (
     <div className="min-h-screen bg-bg text-text-primary flex flex-col selection:bg-accent-soft selection:text-accent font-sans">
       {/* Background Ambient Glow Effects */}
@@ -221,7 +227,7 @@ export const Landing: React.FC = () => {
                         Custom Link Slug <span className="text-text-faint">(Optional)</span>
                       </label>
                       <div className="flex items-center gap-2 px-3.5 py-2.5 bg-bg border border-border focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30 rounded-xl text-xs font-mono transition-all">
-                        <span className="text-text-faint select-none font-semibold">shortify.to/</span>
+                        <span className="text-text-faint select-none font-semibold">{demoBase.replace(/^https?:\/\//, "")}/</span>
                         <input
                           type="text"
                           value={customAlias}
@@ -237,7 +243,7 @@ export const Landing: React.FC = () => {
                   <div className="flex items-center justify-between px-2 pt-1 text-xs">
                     <div className="flex items-center gap-2">
                       <span className="text-text-faint">Live Preview:</span>
-                      <SlugChip slug={generatedSlug} dimmed showCopy={false} />
+                      <SlugChip fullUrl={demoFullUrl} dimmed showCopy={false} />
                     </div>
                     <span className="text-text-faint text-[11px]">Free tier: unlimited creation</span>
                   </div>
@@ -265,7 +271,7 @@ export const Landing: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 bg-surface rounded-lg border border-border">
                     <div className="space-y-1">
                       <p className="text-[11px] text-text-faint truncate max-w-xs">{inputUrl}</p>
-                      <SlugChip slug={generatedSlug} showCopy={true} />
+                      <SlugChip fullUrl={demoFullUrl} showCopy={true} />
                     </div>
                     <Link
                       to="/register"
@@ -355,7 +361,7 @@ export const Landing: React.FC = () => {
                 <div className="w-3 h-3 rounded-full bg-warning/80" />
                 <div className="w-3 h-3 rounded-full bg-success/80" />
                 <span className="ml-2 text-xs font-mono text-text-faint hidden sm:inline-block">
-                  app.shortify.to/dashboard
+                  {demoBase.replace(/^https?:\/\//, "")}/dashboard
                 </span>
               </div>
               {/* Interactive Showcase Tabs */}
@@ -407,7 +413,7 @@ export const Landing: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-xs text-text-faint truncate max-w-md">https://google.com</p>
-                      <SlugChip slug="launch-2026" domain="shortify.to/" />
+                      <SlugChip fullUrl={`${demoBase}/launch-2026`} />
                     </div>
                     <div className="flex items-center gap-6 text-xs text-text-muted">
                       <div>
@@ -429,8 +435,8 @@ export const Landing: React.FC = () => {
                           Custom Alias
                         </span>
                       </div>
-                      <p className="text-xs text-text-faint truncate max-w-md">https://docs.shortify.to/reference</p>
-                      <SlugChip slug="docs-api" domain="shortify.to/" />
+                      <p className="text-xs text-text-faint truncate max-w-md">https://docs.example.com/reference</p>
+                      <SlugChip fullUrl={`${demoBase}/docs-api`} />
                     </div>
                     <div className="flex items-center gap-6 text-xs text-text-muted">
                       <div>
@@ -527,7 +533,7 @@ export const Landing: React.FC = () => {
                   <QrCode className="w-24 h-24" />
                 </div>
                 <div className="space-y-1">
-                  <div className="font-mono text-sm text-text-primary">shortify.to/launch-2026</div>
+                  <div className="font-mono text-sm text-text-primary">{`${demoBase.replace(/^https?:\/\//, "")}/launch-2026`}</div>
                   <p className="text-xs text-text-muted">High-resolution client-side vector QR code generator</p>
                 </div>
               </div>
@@ -554,7 +560,7 @@ export const Landing: React.FC = () => {
               </div>
               <h3 className="font-display font-medium text-lg text-text-primary">Custom Aliases</h3>
               <p className="text-sm text-text-muted leading-relaxed">
-                Brand your links with custom aliases (`shortify.to/my-brand`) or rely on compact auto-generated slugs.
+                Brand your links with custom aliases (e.g. your-domain/my-brand) or rely on compact auto-generated slugs.
               </p>
             </div>
 
@@ -621,7 +627,7 @@ export const Landing: React.FC = () => {
               },
               {
                 q: "Can I specify custom domain aliases for my short links?",
-                a: "Yes! You can specify a custom slug (e.g. shortify.to/my-brand) or let our system generate a compact 6-to-8 character unique slug automatically.",
+                a: "Yes! You can specify a custom slug (e.g. your-domain/my-brand) or let our system generate a compact 6-to-8 character unique slug automatically.",
               },
               {
                 q: "Do I need to type 'https://' when creating a link?",

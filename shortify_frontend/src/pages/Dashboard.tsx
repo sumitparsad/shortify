@@ -36,9 +36,7 @@ export const Dashboard: React.FC = () => {
     window.location.href = `/links/${url.slug}`
   }
 
-  const shortDomain = import.meta.env.VITE_SHORT_URL_BASE
-    ? `${import.meta.env.VITE_SHORT_URL_BASE.replace(/^https?:\/\//, "")}/`
-    : `${window.location.host}/`
+  // short_url from API is the source of truth — no domain construction needed
 
   // Calculate total clicks sum for active page items
   const totalClicksSum = data?.items.reduce((acc, curr) => acc + (curr.click_count || 0), 0) || 0
@@ -174,7 +172,7 @@ export const Dashboard: React.FC = () => {
                             {item.title || item.slug}
                           </span>
                         </div>
-                        <SlugChip slug={item.slug} domain={shortDomain} fullUrl={item.short_url} />
+                        <SlugChip fullUrl={item.short_url} />
                       </div>
 
                       <div className="text-right shrink-0">

@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useNavigate, Link } from "react-router-dom"
 import { toast } from "sonner"
+import { Eye, EyeOff } from "lucide-react"
 import { type RegisterFormData, RegisterSchema } from "../../lib/validators/auth.schema"
 import { registerUser, loginUser, getMe } from "../../lib/api/auth"
 import { useAuthStore } from "../../store/auth.store"
@@ -10,6 +11,7 @@ import { extractErrorMessage } from "../../lib/api/client"
 
 export const RegisterForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
   const setSession = useAuthStore((state) => state.setSession)
 
@@ -85,13 +87,23 @@ export const RegisterForm: React.FC = () => {
         <label className="block text-xs font-medium text-text-muted mb-1.5">
           Password
         </label>
-        <input
-          {...register("password")}
-          type="password"
-          placeholder="••••••••"
-          disabled={isLoading}
-          className="w-full px-3 py-2 rounded-md bg-surface border border-border text-text-primary text-sm placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors disabled:opacity-50"
-        />
+        <div className="relative">
+          <input
+            {...register("password")}
+            type={showPassword ? "text" : "password"}
+            placeholder="••••••••"
+            disabled={isLoading}
+            className="w-full px-3 py-2 pr-9 rounded-md bg-surface border border-border text-text-primary text-sm placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute inset-y-0 right-0 flex items-center px-2.5 text-text-faint hover:text-text-muted transition-colors"
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
         {errors.password && (
           <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>
         )}

@@ -162,7 +162,7 @@ class URLService:
 
     async def delete_url(self, slug: str, owner_id: uuid.UUID) -> None:
         url = await self._get_owned_url(slug, owner_id)
-        await self._url_repo.soft_delete(url)
+        await self._url_repo.delete(url)
         await self._cache.delete(url_cache_key(slug))
 
     async def _get_owned_url(self, slug: str, owner_id: uuid.UUID):

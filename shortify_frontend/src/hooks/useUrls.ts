@@ -19,7 +19,7 @@ export function useCreateUrl() {
     mutationFn: (data: URLCreate) => createUrl(data),
     onSuccess: (newUrl) => {
       queryClient.invalidateQueries({ queryKey: ["urls"] })
-      toast.success(`Short link created: shortify.to/${newUrl.slug}`)
+      toast.success(`Short link created: ${newUrl.short_url}`)
     },
     onError: (err) => {
       toast.error(extractErrorMessage(err))

@@ -103,8 +103,9 @@ class URLRepository:
         )
         await self._db.commit()
 
-    async def soft_delete(self, url: URL) -> None:
-        url.is_active = False
+    async def delete(self, url: URL) -> None:
+        """Permanently delete URL record from database."""
+        await self._db.delete(url)
         await self._db.commit()
 
     async def get_top_urls(self, limit: int = 10) -> list[URL]:

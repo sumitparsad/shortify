@@ -16,9 +16,15 @@ interface UrlCardProps {
 
 export const UrlCard: React.FC<UrlCardProps> = ({ url, onSelect, onEdit, onDelete }) => {
   const updateMutation = useUpdateUrl()
-  const shortDomain = import.meta.env.VITE_SHORT_URL_BASE
-    ? `${import.meta.env.VITE_SHORT_URL_BASE.replace(/^https?:\/\//, "")}/`
-    : "http://localhost:8000/"
+
+  const activeHost = import.meta.env.VITE_SHORT_URL_BASE
+    ? import.meta.env.VITE_SHORT_URL_BASE.replace(/^https?:\/\//, "")
+    : typeof window !== "undefined"
+    ? window.location.host
+    : "shortify.to"
+
+  const shortDomain = `${activeHost}/`
+  const clientFullUrl = typeof window !== "undefined" ? `${window.location.protocol}//${activeHost}/${url.slug}` : `https://${activeHost}/${url.slug}`
 
   const handleToggleActive = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -81,7 +87,7 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onSelect, onEdit, onDelet
 
           {/* Action Quick Buttons */}
           <div className="flex items-center gap-1">
-            <QrCodeButton url={url.short_url} slug={url.slug} />
+            <QrCodeButton url={clientFullUrl} slug={url.slug} />
 
             {onEdit && (
               <button
@@ -115,7 +121,7 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onSelect, onEdit, onDelet
       {/* Body: SlugChip & Meta */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/40">
         <div onClick={(e) => e.stopPropagation()}>
-          <SlugChip slug={url.slug} domain={shortDomain} fullUrl={url.short_url} />
+          <SlugChip slug={url.slug} domain={shortDomain} />
         </div>
 
         <div className="flex items-center gap-4 text-xs text-text-muted">

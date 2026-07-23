@@ -33,9 +33,13 @@ export const LinkDetail: React.FC = () => {
   const { data: analytics, isLoading: isAnalyticsLoading } = useUrlAnalytics(slug || "")
 
   const isLoading = isUrlLoading || isAnalyticsLoading
-  const shortDomain = import.meta.env.VITE_SHORT_URL_BASE
-    ? `${import.meta.env.VITE_SHORT_URL_BASE.replace(/^https?:\/\//, "")}/`
-    : "http://localhost:8000/"
+  const activeHost = import.meta.env.VITE_SHORT_URL_BASE
+    ? import.meta.env.VITE_SHORT_URL_BASE.replace(/^https?:\/\//, "")
+    : typeof window !== "undefined"
+    ? window.location.host
+    : "shortify.to"
+
+  const shortDomain = `${activeHost}/`
 
   return (
     <AppShell>

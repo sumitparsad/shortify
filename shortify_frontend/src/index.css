@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root, html.light {
+  /* Claude AI Warm Ivory Light Theme (Warm Alabaster Porcelain - No Plain White!) */
+  --bg: #EBE8DF;
+  --surface: #F5F3EB;
+  --surface-raised: #E6E3D8;
+  --border: #D3CFBF;
+  --border-glow: rgba(217, 107, 39, 0.35);
+  --text-primary: #1C1A16;
+  --text-muted: #5B574E;
+  --text-faint: #8E897D;
+  --accent: #D96B27;
+  --accent-hover: #C2591B;
+  --accent-soft: rgba(217, 107, 39, 0.1);
+  --success: #059669;
+  --warning: #D97706;
+  --destructive: #DC2626;
+}
+
+html.dark {
+  /* Claude AI & Linear Dark Obsidian Theme */
+  --bg: #08090B;
+  --surface: #111317;
+  --surface-raised: #1A1D24;
+  --border: #2D323E;
+  --border-glow: rgba(217, 107, 39, 0.4);
+  --text-primary: #FAFAFA;
+  --text-muted: #A0A5B1;
+  --text-faint: #626775;
+  --accent: #D96B27;
+  --accent-hover: #C2591B;
+  --accent-soft: rgba(217, 107, 39, 0.15);
+  --success: #10B981;
+  --warning: #F59E0B;
+  --destructive: #EF4444;
+}
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-glow: var(--border-glow);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+}
+
+.glass-card {
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}

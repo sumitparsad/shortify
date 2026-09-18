@@ -9,23 +9,16 @@ Routes:
   GET  /api/v1/auth/me         → Return current user profile
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import APIRouter, Depends, status
+from fastapi.security import HTTPAuthorizationCredentials
 
-import redis.asyncio as aioredis
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import get_db
-from app.core.redis import RedisCache, get_redis
-from app.dependencies.auth import CurrentUser, get_auth_service
-from app.exceptions.auth_exceptions import AuthException
+from app.dependencies.auth import CurrentUser, bearer_scheme, get_auth_service
 from app.schemas.auth import LoginRequest, LogoutRequest, RefreshRequest, TokenResponse
 from app.schemas.common import APIResponse
 from app.schemas.user import UserCreate, UserResponse
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-bearer_scheme = HTTPBearer()
 
 
 @router.post(
@@ -80,10 +73,13 @@ async def refresh(
 )
 async def logout(
     data: LogoutRequest,
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    await auth_service.logout(credentials.credentials, data.refresh_token)
+    # The access token is optional: logout must still revoke the refresh token
+    # when the client no longer holds an access token.
+    access_token = credentials.credentials if credentials else None
+    await auth_service.logout(access_token, data.refresh_token)
     return APIResponse(success=True, message="Logged out successfully")
 
 

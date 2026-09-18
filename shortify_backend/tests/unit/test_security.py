@@ -9,7 +9,7 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    get_token_jti,
+    get_revocation_claims,
     hash_password,
     verify_password,
 )
@@ -89,12 +89,12 @@ class TestJWT:
         with pytest.raises(JWTError):
             decode_token(tampered)
 
-    def test_get_token_jti_extracts_correctly(self):
-        token = create_access_token({"sub": "user-123"})
+    def test_revocation_claims_extract_jti_and_ttl(self):
+        token = create_refresh_token({"sub": "user-123"})
         payload = decode_token(token)
-        jti = get_token_jti(token)
+        jti, seconds_left = get_revocation_claims(token)
         assert jti == payload["jti"]
+        assert 0 < seconds_left <= 7 * 86400
 
-    def test_get_token_jti_invalid_token_returns_none(self):
-        jti = get_token_jti("garbage.token.here")
-        assert jti is None
+    def test_revocation_claims_invalid_token_returns_none(self):
+        assert get_revocation_claims("garbage.token.here") is None

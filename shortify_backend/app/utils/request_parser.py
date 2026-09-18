@@ -20,6 +20,8 @@ PRODUCTION ALTERNATIVE:
 import hashlib
 from fastapi import Request
 
+from app.core.config import settings
+
 try:
     from user_agents import parse as ua_parse
     UA_AVAILABLE = True
@@ -28,13 +30,18 @@ except ImportError:
 
 
 def get_client_ip(request: Request) -> str:
-    """Extract real client IP, considering reverse proxy headers."""
+    """
+    Extract the real client IP behind TRUSTED_PROXY_HOPS reverse proxies.
+
+    The leftmost X-Forwarded-For entry is whatever the client sent, so trusting it
+    lets anyone dodge rate limits. Only entries appended by our own proxies are used.
+    """
+    hops = settings.TRUSTED_PROXY_HOPS
     forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip.strip()
+    if hops > 0 and forwarded_for:
+        entries = [e.strip() for e in forwarded_for.split(",") if e.strip()]
+        if len(entries) >= hops:
+            return entries[-hops]
     return request.client.host if request.client else "unknown"
 
 

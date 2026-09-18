@@ -1,6 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
 import { useAuthStore } from "../../store/auth.store"
-import type { TokenResponse } from "../../types/auth"
+import type { TokenResponse, UserResponse } from "../../types/auth"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1"
 
@@ -20,22 +20,32 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
-// Prevent duplicate simultaneous refresh requests
-let isRefreshing = false
-let failedQueue: Array<{
-  resolve: (token: string) => void
-  reject: (err: unknown) => void
-}> = []
+// Refresh tokens are single-use (the backend revokes each one on refresh), so every
+// caller — the 401 interceptor, AuthGuard on page load, concurrent requests —
+// must share one in-flight refresh instead of each spending the same token.
+let refreshInFlight: Promise<string> | null = null
 
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error)
-    } else if (token) {
-      prom.resolve(token)
-    }
-  })
-  failedQueue = []
+/** Exchanges the stored refresh token for a new session. Returns the new access token. */
+export function refreshSession(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const refreshToken = useAuthStore.getState().getRefreshToken()
+      if (!refreshToken) throw new Error("No refresh token")
+
+      const { data } = await axios.post<TokenResponse>(`${API_BASE_URL}/auth/refresh`, {
+        refresh_token: refreshToken,
+      })
+      const { data: user } = await axios.get<UserResponse>(`${API_BASE_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      })
+
+      useAuthStore.getState().setSession(data.access_token, data.refresh_token, user)
+      return data.access_token
+    })().finally(() => {
+      refreshInFlight = null
+    })
+  }
+  return refreshInFlight
 }
 
 // Response Interceptor: Silent Token Refresh on 401
@@ -44,68 +54,25 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
-    // If 401 and not already retried
     if (
-      error.response?.status === 401 &&
-      originalRequest &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes("/auth/login") &&
-      !originalRequest.url?.includes("/auth/refresh")
+      error.response?.status !== 401 ||
+      !originalRequest ||
+      originalRequest._retry ||
+      originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/refresh")
     ) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
-        })
-          .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`
-            }
-            return apiClient(originalRequest)
-          })
-          .catch((err) => Promise.reject(err))
-      }
-
-      originalRequest._retry = true
-      isRefreshing = true
-
-      const refreshToken = useAuthStore.getState().getRefreshToken()
-
-      if (!refreshToken) {
-        useAuthStore.getState().clearSession()
-        isRefreshing = false
-        return Promise.reject(error)
-      }
-
-      try {
-        const { data } = await axios.post<TokenResponse>(`${API_BASE_URL}/auth/refresh`, {
-          refresh_token: refreshToken,
-        })
-
-        const { access_token, refresh_token } = data
-
-        // Fetch current user with new access token
-        const meRes = await axios.get(`${API_BASE_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${access_token}` },
-        })
-
-        useAuthStore.getState().setSession(access_token, refresh_token, meRes.data)
-        processQueue(null, access_token)
-
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-        }
-
-        return apiClient(originalRequest)
-      } catch (refreshErr) {
-        processQueue(refreshErr, null)
-        useAuthStore.getState().clearSession()
-        return Promise.reject(refreshErr)
-      } finally {
-        isRefreshing = false
-      }
+      return Promise.reject(error)
     }
 
-    return Promise.reject(error)
+    originalRequest._retry = true
+    try {
+      const accessToken = await refreshSession()
+      originalRequest.headers.Authorization = `Bearer ${accessToken}`
+      return apiClient(originalRequest)
+    } catch (refreshErr) {
+      useAuthStore.getState().clearSession()
+      return Promise.reject(refreshErr)
+    }
   }
 )
 

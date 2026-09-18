@@ -225,3 +225,104 @@ class TestRedirect:
     async def test_redirect_not_found(self, client: AsyncClient):
         response = await client.get("/nonexistentslug99", follow_redirects=False)
         assert response.status_code == 404
+
+
+async def _other_user_headers(client: AsyncClient) -> dict:
+    payload = {"email": "other_user@example.com", "username": "other_user", "password": "TestPass1"}
+    await client.post("/api/v1/auth/register", json=payload)
+    response = await client.post(
+        "/api/v1/auth/login", json={"email": payload["email"], "password": payload["password"]}
+    )
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+@pytest.mark.asyncio
+class TestUserIsolation:
+    async def test_other_user_cannot_see_or_modify_link(
+        self, client: AsyncClient, auth_headers: dict, url_payload: dict
+    ):
+        slug = (await client.post("/api/v1/urls/", json=url_payload, headers=auth_headers)).json()["slug"]
+        other = await _other_user_headers(client)
+
+        assert (await client.get("/api/v1/urls/", headers=other)).json()["total"] == 0
+        assert (await client.get(f"/api/v1/urls/{slug}", headers=other)).status_code == 404
+        assert (
+            await client.patch(f"/api/v1/urls/{slug}", json={"title": "x"}, headers=other)
+        ).status_code == 404
+        assert (await client.delete(f"/api/v1/urls/{slug}", headers=other)).status_code == 404
+        assert (await client.get(f"/api/v1/analytics/{slug}", headers=other)).status_code == 404
+
+    async def test_top_urls_only_include_own_links(
+        self, client: AsyncClient, auth_headers: dict, url_payload: dict
+    ):
+        await client.post("/api/v1/urls/", json=url_payload, headers=auth_headers)
+        other = await _other_user_headers(client)
+
+        own = await client.get("/api/v1/analytics/top/urls", headers=auth_headers)
+        assert len(own.json()) == 1
+        others = await client.get("/api/v1/analytics/top/urls", headers=other)
+        assert others.json() == []
+
+    async def test_top_urls_requires_auth(self, client: AsyncClient):
+        assert (await client.get("/api/v1/analytics/top/urls")).status_code == 401
+
+    async def test_same_url_is_separate_link_per_user(
+        self, client: AsyncClient, auth_headers: dict, url_payload: dict
+    ):
+        first = (await client.post("/api/v1/urls/", json=url_payload, headers=auth_headers)).json()
+        other = await _other_user_headers(client)
+        second = (await client.post("/api/v1/urls/", json=url_payload, headers=other)).json()
+        assert first["slug"] != second["slug"]
+        assert first["owner_id"] != second["owner_id"]
+
+
+@pytest.mark.asyncio
+class TestURLEdgeCases:
+    async def test_delete_url_with_recorded_clicks(
+        self, client: AsyncClient, auth_headers: dict, url_payload: dict, db_session
+    ):
+        from app.models import URLAnalytics
+        from app.repositories.url_repository import URLRepository
+
+        slug = (await client.post("/api/v1/urls/", json=url_payload, headers=auth_headers)).json()["slug"]
+        url = await URLRepository(db_session).get_by_slug(slug)
+        db_session.add(URLAnalytics(url_id=url.id, browser="Chrome"))
+        await db_session.commit()
+
+        response = await client.delete(f"/api/v1/urls/{slug}", headers=auth_headers)
+        assert response.status_code == 200
+
+    async def test_custom_alias_not_swallowed_by_deduplication(
+        self, client: AsyncClient, auth_headers: dict, url_payload: dict
+    ):
+        await client.post("/api/v1/urls/", json=url_payload, headers=auth_headers)
+        response = await client.post(
+            "/api/v1/urls/", json={**url_payload, "custom_alias": "my-alias"}, headers=auth_headers
+        )
+        assert response.status_code == 201
+        assert response.json()["slug"] == "my-alias"
+
+    async def test_update_can_clear_title_and_expiry(
+        self, client: AsyncClient, auth_headers: dict, url_payload: dict
+    ):
+        payload = {**url_payload, "expires_at": "2099-01-01T00:00:00Z"}
+        slug = (await client.post("/api/v1/urls/", json=payload, headers=auth_headers)).json()["slug"]
+        response = await client.patch(
+            f"/api/v1/urls/{slug}",
+            json={"title": None, "expires_at": None, "long_url": None, "is_active": None},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] is None
+        assert data["expires_at"] is None
+        assert data["long_url"] == url_payload["long_url"]
+        assert data["is_active"] is True
+
+    async def test_reserved_alias_rejected(self, client: AsyncClient, auth_headers: dict):
+        response = await client.post(
+            "/api/v1/urls/",
+            json={"long_url": "https://example.com", "custom_alias": "docs"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422

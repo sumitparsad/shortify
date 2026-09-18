@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Shield, Globe, User as UserIcon, Link2, MousePointer, Activity, Zap } from "lucide-react"
 import { AppShell } from "../components/layout/AppShell"
 import { UrlList } from "../components/url/UrlList"
@@ -13,7 +13,7 @@ import { useUrls } from "../hooks/useUrls"
 import { useTopUrls } from "../hooks/useUrlAnalytics"
 import { useAuthStore } from "../store/auth.store"
 import { extractErrorMessage } from "../lib/api/client"
-import { formatNumber } from "../lib/utils"
+import { formatNumber, isLinkLive } from "../lib/utils"
 import type { URLResponse } from "../types/url"
 
 export const Dashboard: React.FC = () => {
@@ -28,19 +28,22 @@ export const Dashboard: React.FC = () => {
   const [editingUrl, setEditingUrl] = useState<URLResponse | null>(null)
   const [deletingUrl, setDeletingUrl] = useState<URLResponse | null>(null)
 
+  const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { data, isLoading, isError, error } = useUrls(page, pageSize)
+  const { data, isLoading, isError, error, refetch } = useUrls(page, pageSize)
   const { data: topUrls, isLoading: isTopLoading } = useTopUrls(10)
 
+  // Client-side navigation keeps the in-memory session (a full reload forces a token refresh)
   const handleSelectUrl = (url: URLResponse) => {
-    window.location.href = `/links/${url.slug}`
+    navigate(`/links/${url.slug}`)
   }
 
   // short_url from API is the source of truth — no domain construction needed
 
   // Calculate total clicks sum for active page items
   const totalClicksSum = data?.items.reduce((acc, curr) => acc + (curr.click_count || 0), 0) || 0
-  const activeLinksCount = data?.items.filter((item) => item.is_active).length || 0
+  // Expired links are switched on but no longer redirect, so they don't count as active
+  const activeLinksCount = data?.items.filter(isLinkLive).length || 0
 
   return (
     <AppShell onCreateClick={() => setIsCreateOpen(true)}>
@@ -117,6 +120,7 @@ export const Dashboard: React.FC = () => {
               isError={isError}
               errorMessage={error ? extractErrorMessage(error) : undefined}
               onPageChange={(newPage) => setPage(newPage)}
+              onRetry={() => refetch()}
               onSelectUrl={handleSelectUrl}
               onEditUrl={(url) => setEditingUrl(url)}
               onDeleteUrl={(url) => setDeletingUrl(url)}
@@ -134,7 +138,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard title="Total Links" value={data?.total || 0} subtitle="Active shortened URLs" />
+              <StatCard title="Total Links" value={data?.total || 0} subtitle="All your shortened URLs" />
               <StatCard
                 title="Top Performing Link"
                 value={topUrls?.[0]?.slug ? topUrls[0].slug : "None"}
@@ -162,7 +166,7 @@ export const Dashboard: React.FC = () => {
                   {topUrls.map((item, idx) => (
                     <div
                       key={item.slug}
-                      onClick={() => (window.location.href = `/links/${item.slug}`)}
+                      onClick={() => navigate(`/links/${item.slug}`)}
                       className="p-3.5 rounded-lg bg-bg border border-border hover:border-accent/40 flex items-center justify-between gap-4 cursor-pointer transition-colors"
                     >
                       <div className="space-y-1 min-w-0">

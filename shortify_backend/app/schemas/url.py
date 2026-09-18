@@ -5,6 +5,13 @@ from datetime import datetime
 
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator
 
+# Top-level paths served by the app itself; a slug with one of these names could never
+# be reached through the GET /{slug} redirect route.
+RESERVED_SLUGS = frozenset([
+    "health", "docs", "redoc", "openapi.json", "favicon.ico",
+    "api", "static", "metrics",
+])
+
 
 class URLCreate(BaseModel):
     long_url: AnyHttpUrl
@@ -25,6 +32,13 @@ class URLCreate(BaseModel):
     @classmethod
     def ensure_str(cls, v: object) -> str:
         return str(v)
+
+    @field_validator("custom_alias")
+    @classmethod
+    def not_reserved(cls, v: str | None) -> str | None:
+        if v is not None and v.lower() in RESERVED_SLUGS:
+            raise ValueError(f"'{v}' is a reserved path and can't be used as an alias")
+        return v
 
 
 class URLUpdate(BaseModel):

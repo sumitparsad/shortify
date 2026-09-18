@@ -3,9 +3,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions.url_exceptions import URLNotFoundException
+from app.models.user import User
 from app.repositories.analytics_repository import AnalyticsRepository
 from app.repositories.url_repository import URLRepository
-from app.schemas.analytics import URLAnalyticsResponse
+from app.schemas.analytics import TopURLResponse, URLAnalyticsResponse
+from app.services.url_service import _build_short_url
 
 
 class AnalyticsService:
@@ -13,9 +15,10 @@ class AnalyticsService:
         self._url_repo = URLRepository(db)
         self._analytics_repo = AnalyticsRepository(db)
 
-    async def get_url_analytics(self, slug: str) -> URLAnalyticsResponse:
+    async def get_url_analytics(self, slug: str, user: User) -> URLAnalyticsResponse:
         url = await self._url_repo.get_by_slug(slug)
-        if not url:
+        # Another user's link is reported as not found so its existence isn't revealed
+        if not url or (url.owner_id != user.id and user.role != "admin"):
             raise URLNotFoundException(f"URL '{slug}' not found")
 
         total_clicks = await self._analytics_repo.get_total_clicks(url.id)
@@ -30,9 +33,22 @@ class AnalyticsService:
             slug=slug,
             total_clicks=total_clicks,
             unique_visitors=unique_visitors,
-            clicks_by_date=[{"date": r["date"], "clicks": r["clicks"]} for r in clicks_by_date],
-            clicks_by_country=[{"country_code": r["country_code"], "clicks": r["clicks"]} for r in clicks_by_country],
-            clicks_by_browser=[{"browser": r["browser"], "clicks": r["clicks"]} for r in clicks_by_browser],
-            clicks_by_os=[{"os": r["os"], "clicks": r["clicks"]} for r in clicks_by_os],
-            clicks_by_device=[{"device_type": r["device_type"], "clicks": r["clicks"]} for r in clicks_by_device],
+            clicks_by_date=clicks_by_date,
+            clicks_by_country=clicks_by_country,
+            clicks_by_browser=clicks_by_browser,
+            clicks_by_os=clicks_by_os,
+            clicks_by_device=clicks_by_device,
         )
+
+    async def get_top_urls(self, user: User, limit: int) -> list[TopURLResponse]:
+        urls = await self._url_repo.get_top_urls(owner_id=user.id, limit=limit)
+        return [
+            TopURLResponse(
+                slug=u.slug,
+                long_url=u.long_url,
+                title=u.title,
+                click_count=u.click_count,
+                short_url=_build_short_url(u.slug),
+            )
+            for u in urls
+        ]

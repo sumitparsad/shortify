@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { X, Save, Calendar, Power } from "lucide-react"
 import { type UpdateUrlFormData, UpdateUrlSchema, normalizeUrl } from "../../lib/validators/url.schema"
 import { useUpdateUrl } from "../../hooks/useUrls"
+import { toDateTimeLocalValue } from "../../lib/utils"
 import type { URLResponse, URLUpdate } from "../../types/url"
 
 interface EditUrlDialogProps {
@@ -30,7 +31,7 @@ export const EditUrlDialog: React.FC<EditUrlDialogProps> = ({ url, isOpen, onClo
       reset({
         long_url: url.long_url,
         title: url.title || "",
-        expires_at: url.expires_at ? new Date(url.expires_at).toISOString().slice(0, 16) : "",
+        expires_at: url.expires_at ? toDateTimeLocalValue(url.expires_at) : "",
       })
       setIsActive(url.is_active)
     }
@@ -39,11 +40,12 @@ export const EditUrlDialog: React.FC<EditUrlDialogProps> = ({ url, isOpen, onClo
   if (!isOpen || !url) return null
 
   const onSubmit = async (data: UpdateUrlFormData) => {
+    // Empty title / expiry fields clear the stored values
     const payload: URLUpdate = {
       long_url: data.long_url ? normalizeUrl(data.long_url) : undefined,
-      title: data.title ? data.title.trim() : undefined,
+      title: data.title?.trim() || null,
       is_active: isActive,
-      expires_at: data.expires_at ? new Date(data.expires_at).toISOString() : undefined,
+      expires_at: data.expires_at ? new Date(data.expires_at).toISOString() : null,
     }
 
     updateMutation.mutate(

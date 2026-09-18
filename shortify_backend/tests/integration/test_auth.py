@@ -118,6 +118,38 @@ class TestTokenRefresh:
         )
         assert response.status_code == 401
 
+    async def test_refresh_token_is_single_use(
+        self, client: AsyncClient, user_payload: dict, registered_user: dict
+    ):
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": user_payload["email"], "password": user_payload["password"]},
+        )
+        refresh_token = login_resp.json()["refresh_token"]
+
+        first = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+        assert first.status_code == 200
+        reused = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+        assert reused.status_code == 401
+        rotated = await client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": first.json()["refresh_token"]}
+        )
+        assert rotated.status_code == 200
+
+    async def test_logout_without_access_token_revokes_refresh(
+        self, client: AsyncClient, user_payload: dict, registered_user: dict
+    ):
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": user_payload["email"], "password": user_payload["password"]},
+        )
+        refresh_token = login_resp.json()["refresh_token"]
+
+        logout = await client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+        assert logout.status_code == 200
+        reused = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+        assert reused.status_code == 401
+
 
 @pytest.mark.asyncio
 class TestGetMe:

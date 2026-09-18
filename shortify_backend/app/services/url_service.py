@@ -1,23 +1,26 @@
 import hashlib
 import math
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pydantic import AnyHttpUrl
 from fastapi import BackgroundTasks
 from nanoid import generate as nanoid_generate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.core.logging import get_logger
 from app.core.redis import RedisCache, URL_CACHE_TTL, url_cache_key
 from app.exceptions.url_exceptions import (
     AliasAlreadyExistsException,
     URLExpiredException,
     URLNotFoundException,
-    URLOwnershipException,
 )
 from app.repositories.analytics_repository import AnalyticsRepository
 from app.repositories.url_repository import URLRepository
 from app.schemas.url import URLCreate, URLListResponse, URLResponse, URLUpdate
+
+logger = get_logger(__name__)
 
 NANOID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-"
 
@@ -37,7 +40,6 @@ def _build_short_url(slug: str) -> str:
 class URLService:
     def __init__(self, db: AsyncSession, cache: RedisCache) -> None:
         self._url_repo = URLRepository(db)
-        self._analytics_repo = AnalyticsRepository(db)
         self._cache = cache
 
     async def create_short_url(
@@ -48,16 +50,20 @@ class URLService:
         long_url = str(data.long_url)
         url_hash = _hash_url(long_url)
 
-        existing = await self._url_repo.hash_exists_for_owner(url_hash, owner_id)
-        if existing:
-            return self._to_response(existing)
-
         if data.custom_alias:
-            if await self._url_repo.slug_exists(data.custom_alias):
+            taken = await self._url_repo.get_by_slug(data.custom_alias)
+            if taken:
+                # Repeating the same create (same owner, alias and URL) is idempotent
+                if taken.owner_id == owner_id and taken.url_hash == url_hash:
+                    return self._to_response(taken)
                 raise AliasAlreadyExistsException(f"Alias '{data.custom_alias}' is already taken")
             slug = data.custom_alias
             is_custom = True
         else:
+            # Without an explicit alias, reuse the caller's existing link for the same URL
+            existing = await self._url_repo.hash_exists_for_owner(url_hash, owner_id)
+            if existing:
+                return self._to_response(existing)
             slug = await self._generate_unique_slug()
             is_custom = False
 
@@ -71,7 +77,7 @@ class URLService:
             expires_at=data.expires_at,
         )
 
-        await self._cache.set(url_cache_key(slug), long_url, ttl=URL_CACHE_TTL)
+        await self._cache_long_url(slug, long_url, url.expires_at)
         return self._to_response(url)
 
     async def redirect(
@@ -96,7 +102,7 @@ class URLService:
         if url.expires_at and url.expires_at < datetime.now(UTC):
             raise URLExpiredException(f"URL '{slug}' has expired")
 
-        await self._cache.set(url_cache_key(slug), url.long_url, ttl=URL_CACHE_TTL)
+        await self._cache_long_url(slug, url.long_url, url.expires_at)
 
         background_tasks.add_task(
             self._record_click_background,
@@ -105,13 +111,38 @@ class URLService:
         )
         return url.long_url
 
+    async def _cache_long_url(self, slug: str, long_url: str, expires_at: datetime | None) -> None:
+        """Cache a redirect target, never beyond the link's expiry (cache hits skip the expiry check)."""
+        ttl = URL_CACHE_TTL
+        if expires_at:
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            ttl = min(ttl, int((expires_at - datetime.now(UTC)).total_seconds()))
+        if ttl > 0:
+            await self._cache.set(url_cache_key(slug), long_url, ttl=ttl)
+
     async def _record_click_background(self, slug: str, request_meta: dict) -> None:
-        url = await self._url_repo.get_by_slug(slug)
+        # Runs after the response is sent, so it uses its own session rather than
+        # the request-scoped one, which may already be closed.
+        try:
+            async with AsyncSessionLocal() as session:
+                await self._record_click(URLRepository(session), AnalyticsRepository(session), slug, request_meta)
+        except Exception as e:
+            logger.error("Failed to record click", slug=slug, error=str(e))
+
+    async def _record_click(
+        self,
+        url_repo: URLRepository,
+        analytics_repo: AnalyticsRepository,
+        slug: str,
+        request_meta: dict,
+    ) -> None:
+        url = await url_repo.get_by_slug(slug)
         if not url:
             return
 
-        await self._url_repo.increment_click_count(slug)
-        await self._analytics_repo.record_click(
+        await url_repo.increment_click_count(slug)
+        await analytics_repo.record_click(
             url_id=url.id,
             visitor_hash=request_meta.get("visitor_hash"),
             ip_address=request_meta.get("ip"),
@@ -152,6 +183,12 @@ class URLService:
         url = await self._get_owned_url(slug, owner_id)
         update_fields = data.model_dump(exclude_unset=True)
 
+        # long_url and is_active are NOT NULL columns; an explicit null means "leave unchanged".
+        # title and expires_at may be set to null to clear them.
+        for field in ("long_url", "is_active"):
+            if update_fields.get(field, ...) is None:
+                del update_fields[field]
+
         if "long_url" in update_fields:
             update_fields["long_url"] = str(update_fields["long_url"])
             update_fields["url_hash"] = _hash_url(update_fields["long_url"])
@@ -167,10 +204,9 @@ class URLService:
 
     async def _get_owned_url(self, slug: str, owner_id: uuid.UUID):
         url = await self._url_repo.get_by_slug(slug)
-        if not url:
+        # Another user's link is reported as not found so its existence isn't revealed.
+        if not url or url.owner_id != owner_id:
             raise URLNotFoundException(f"URL '{slug}' not found")
-        if url.owner_id != owner_id:
-            raise URLOwnershipException("You don't own this URL")
         return url
 
     async def _generate_unique_slug(self, max_retries: int = 3) -> str:

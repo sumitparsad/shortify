@@ -3,6 +3,7 @@ import { Search, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { UrlCard } from "./UrlCard"
 import { UrlListSkeleton } from "./UrlListSkeleton"
 import { EmptyState } from "../shared/EmptyState"
+import { isLinkLive } from "../../lib/utils"
 import type { URLResponse } from "../../types/url"
 
 interface UrlListProps {
@@ -14,6 +15,7 @@ interface UrlListProps {
   isError: boolean
   errorMessage?: string
   onPageChange: (newPage: number) => void
+  onRetry?: () => void
   onSelectUrl?: (url: URLResponse) => void
   onEditUrl?: (url: URLResponse) => void
   onDeleteUrl?: (url: URLResponse) => void
@@ -29,6 +31,7 @@ export const UrlList: React.FC<UrlListProps> = ({
   isError,
   errorMessage,
   onPageChange,
+  onRetry,
   onSelectUrl,
   onEditUrl,
   onDeleteUrl,
@@ -40,8 +43,9 @@ export const UrlList: React.FC<UrlListProps> = ({
   // Robust Space-Aware Search & Filter
   const filteredItems = items.filter((item) => {
     // Status Filter Check
-    if (statusFilter === "active" && !item.is_active) return false
-    if (statusFilter === "inactive" && item.is_active) return false
+    // "Inactive" includes expired links, matching the status badge
+    if (statusFilter === "active" && !isLinkLive(item)) return false
+    if (statusFilter === "inactive" && isLinkLive(item)) return false
     if (statusFilter === "custom" && !item.is_custom_alias) return false
 
     // Space-Aware Tokenized Query Match
@@ -66,7 +70,7 @@ export const UrlList: React.FC<UrlListProps> = ({
         description={errorMessage || "Unable to reach the server. Please check your backend connection."}
         action={
           <button
-            onClick={() => onPageChange(page)}
+            onClick={() => (onRetry ? onRetry() : onPageChange(page))}
             className="px-4 py-2 rounded-md bg-accent text-white text-xs font-medium"
           >
             Retry

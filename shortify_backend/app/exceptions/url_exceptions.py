@@ -15,10 +15,6 @@ class URLExpiredException(URLException):
     pass
 
 
-class URLOwnershipException(URLException):
-    pass
-
-
 class AliasAlreadyExistsException(URLException):
     pass
 

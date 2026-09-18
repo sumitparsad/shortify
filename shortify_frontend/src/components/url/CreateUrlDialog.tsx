@@ -19,6 +19,7 @@ export const CreateUrlDialog: React.FC<CreateUrlDialogProps> = ({ isOpen, onClos
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useForm<CreateUrlFormData>({
     resolver: zodResolver(CreateUrlSchema),
@@ -29,16 +30,27 @@ export const CreateUrlDialog: React.FC<CreateUrlDialogProps> = ({ isOpen, onClos
 
   if (!isOpen) return null
 
+  const handleClose = () => {
+    reset()
+    setHasExpiry(false)
+    onClose()
+  }
+
   const onSubmit = async (data: CreateUrlFormData) => {
-    // Backend bug workaround: If no expiration is chosen, send far future date (2099)
-    // so backend doesn't fall back to default 30-minute expiry!
-    const farFuture = "2099-12-31T23:59:59Z"
+    // No expiry selected -> omit it; the backend treats a missing expires_at as "never expires"
     let expiresAt: string | undefined = undefined
 
-    if (hasExpiry && data.expires_at) {
-      expiresAt = new Date(data.expires_at).toISOString()
-    } else {
-      expiresAt = farFuture
+    if (hasExpiry) {
+      const expiry = data.expires_at ? new Date(data.expires_at) : null
+      if (!expiry || Number.isNaN(expiry.getTime())) {
+        setError("expires_at", { message: "Pick an expiration date or turn expiry off" })
+        return
+      }
+      if (expiry.getTime() <= Date.now()) {
+        setError("expires_at", { message: "Expiration date must be in the future" })
+        return
+      }
+      expiresAt = expiry.toISOString()
     }
 
     const payload: URLCreate = {
@@ -49,11 +61,7 @@ export const CreateUrlDialog: React.FC<CreateUrlDialogProps> = ({ isOpen, onClos
     }
 
     createMutation.mutate(payload, {
-      onSuccess: () => {
-        reset()
-        setHasExpiry(false)
-        onClose()
-      },
+      onSuccess: handleClose,
     })
   }
 
@@ -73,7 +81,7 @@ export const CreateUrlDialog: React.FC<CreateUrlDialogProps> = ({ isOpen, onClos
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-raised transition-colors"
           >
             <X className="w-4 h-4" />
@@ -169,6 +177,9 @@ export const CreateUrlDialog: React.FC<CreateUrlDialogProps> = ({ isOpen, onClos
                   disabled={createMutation.isPending}
                   className="w-full px-3 py-2 rounded-md bg-surface border border-border text-text-primary text-xs focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
                 />
+                {errors.expires_at && (
+                  <p className="mt-1 text-xs text-destructive">{errors.expires_at.message}</p>
+                )}
               </div>
             )}
           </div>
@@ -177,7 +188,7 @@ export const CreateUrlDialog: React.FC<CreateUrlDialogProps> = ({ isOpen, onClos
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/40">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={createMutation.isPending}
               className="px-4 py-2 rounded-md border border-border bg-surface hover:bg-surface-raised text-text-muted hover:text-text-primary text-xs font-medium transition-colors"
             >

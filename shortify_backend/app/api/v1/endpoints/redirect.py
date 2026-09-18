@@ -17,7 +17,7 @@ WHY 302 not 301?
 - 302 Found: Browser re-requests every time → analytics + mutability
 """
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 import redis.asyncio as aioredis
@@ -25,16 +25,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.redis import RedisCache, get_redis
+from app.schemas.url import RESERVED_SLUGS
 from app.services.url_service import URLService
 from app.utils.request_parser import extract_request_meta
 
 router = APIRouter(tags=["Redirect"])
-
-# Paths that should NOT be treated as slugs
-_EXCLUDED_PATHS = frozenset([
-    "health", "docs", "redoc", "openapi.json", "favicon.ico",
-    "api", "static", "metrics",
-])
 
 
 def _get_url_service(
@@ -67,11 +62,9 @@ async def redirect_to_url(
     url_service: URLService = Depends(_get_url_service),
 ):
     # Guard: don't treat system paths as slugs
-    if slug in _EXCLUDED_PATHS:
-        from fastapi import HTTPException
+    if slug in RESERVED_SLUGS:
         raise HTTPException(status_code=404, detail="Not found")
 
     request_meta = extract_request_meta(request)
     long_url = await url_service.redirect(slug, background_tasks, request_meta)
-    print("LONG URL =", repr(long_url), type(long_url))
     return RedirectResponse(url=long_url, status_code=302)

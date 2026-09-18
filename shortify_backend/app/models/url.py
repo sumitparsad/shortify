@@ -101,7 +101,13 @@ class URL(Base):
     # Relationships
     owner: Mapped["User"] = relationship("User", back_populates="urls")  # noqa: F821
     analytics: Mapped[list["URLAnalytics"]] = relationship(  # noqa: F821
-        "URLAnalytics", back_populates="url", lazy="select"
+        # Let the DB's ON DELETE CASCADE remove click rows; without passive_deletes the
+        # ORM would try to NULL the non-nullable url_id and deleting a clicked link fails.
+        "URLAnalytics",
+        back_populates="url",
+        lazy="select",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     # Composite indexes for common query patterns

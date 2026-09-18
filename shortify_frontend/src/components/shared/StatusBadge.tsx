@@ -1,5 +1,5 @@
 import React from "react"
-import { cn } from "../../lib/utils"
+import { cn, isExpired } from "../../lib/utils"
 
 interface StatusBadgeProps {
   isActive: boolean
@@ -14,9 +14,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   isCustomAlias,
   className,
 }) => {
-  const isExpired = expiresAt ? new Date(expiresAt) < new Date() : false
+  const expired = isExpired(expiresAt)
 
-  if (!isActive || isExpired) {
+  if (!isActive || expired) {
     return (
       <span
         className={cn(
@@ -25,7 +25,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         )}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
-        <span>{isExpired ? "Expired" : "Inactive"}</span>
+        <span>{expired ? "Expired" : "Inactive"}</span>
       </span>
     )
   }

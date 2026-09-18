@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { UserResponse } from "../types/auth"
+import { queryClient } from "../lib/queryClient"
 
 interface AuthState {
   accessToken: string | null
@@ -13,12 +14,15 @@ interface AuthState {
   getRefreshToken: () => string | null
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,
   isRehydrating: true,
 
   setSession: (accessToken, refreshToken, user) => {
+    // A different account must never see the previous account's cached links
+    const previousUser = get().user
+    if (previousUser && previousUser.id !== user.id) queryClient.clear()
     localStorage.setItem("shortify_refresh_token", refreshToken)
     set({ accessToken, user, isRehydrating: false })
   },
@@ -28,6 +32,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   clearSession: () => {
     localStorage.removeItem("shortify_refresh_token")
+    queryClient.clear()
     set({ accessToken: null, user: null, isRehydrating: false })
   },
 

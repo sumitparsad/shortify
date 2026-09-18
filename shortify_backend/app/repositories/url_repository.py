@@ -80,9 +80,9 @@ class URLRepository:
                 URL.url_hash == url_hash,
                 URL.owner_id == owner_id,
                 URL.is_active == True,  # noqa: E712
-            )
+            ).limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def update(self, url: URL, **fields: object) -> URL:
         for field, value in fields.items():
@@ -108,10 +108,10 @@ class URLRepository:
         await self._db.delete(url)
         await self._db.commit()
 
-    async def get_top_urls(self, limit: int = 10) -> list[URL]:
+    async def get_top_urls(self, owner_id: uuid.UUID, limit: int = 10) -> list[URL]:
         result = await self._db.execute(
             select(URL)
-            .where(URL.is_active == True)  # noqa: E712
+            .where(URL.owner_id == owner_id, URL.is_active == True)  # noqa: E712
             .order_by(URL.click_count.desc())
             .limit(limit)
         )

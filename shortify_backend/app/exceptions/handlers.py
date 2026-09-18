@@ -34,7 +34,6 @@ from app.exceptions.url_exceptions import (
     RateLimitExceededException,
     URLExpiredException,
     URLNotFoundException,
-    URLOwnershipException,
 )
 
 
@@ -70,10 +69,6 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(URLExpiredException)
     async def url_expired_handler(request: Request, exc: URLExpiredException):
         return _error_response(exc.message, status.HTTP_410_GONE)
-
-    @app.exception_handler(URLOwnershipException)
-    async def url_ownership_handler(request: Request, exc: URLOwnershipException):
-        return _error_response(exc.message, status.HTTP_403_FORBIDDEN)
 
     @app.exception_handler(AliasAlreadyExistsException)
     async def alias_exists_handler(request: Request, exc: AliasAlreadyExistsException):

@@ -46,6 +46,11 @@ def hash_password(plain_password: str) -> str:
     return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 
+# Compared against when the account doesn't exist, so a failed login costs the same
+# bcrypt time either way and response timing doesn't reveal which emails are registered.
+DUMMY_PASSWORD_HASH = bcrypt.hashpw(b"dummy-password", bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)).decode("utf-8")
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Constant-time bcrypt comparison — prevents timing attacks.
@@ -103,8 +108,11 @@ def decode_token(token: str) -> dict[str, Any]:
     return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
 
 
-def get_token_jti(token: str) -> str | None:
-    """Extract the JTI from a token without full validation (used for revocation)."""
+def get_revocation_claims(token: str) -> tuple[str, int] | None:
+    """
+    Return (jti, seconds until expiry) for a correctly signed token, ignoring expiry.
+    Used for revocation: the blocklist entry only needs to live as long as the token.
+    """
     try:
         payload = jwt.decode(
             token,
@@ -112,6 +120,9 @@ def get_token_jti(token: str) -> str | None:
             algorithms=[settings.ALGORITHM],
             options={"verify_exp": False},
         )
-        return payload.get("jti")
     except JWTError:
         return None
+    jti, exp = payload.get("jti"), payload.get("exp")
+    if not jti or not exp:
+        return None
+    return jti, int(exp - datetime.now(UTC).timestamp())

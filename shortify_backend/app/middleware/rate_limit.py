@@ -38,7 +38,7 @@ from starlette.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.redis import get_redis_pool, rate_limit_key
-from app.exceptions.url_exceptions import RateLimitExceededException
+from app.utils.request_parser import get_client_ip
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -53,11 +53,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in self.EXCLUDED_PATHS:
             return await call_next(request)
 
-        # Prefer X-Forwarded-For (load balancer sets this); fall back to direct IP
-        client_ip = (
-            request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-            or (request.client.host if request.client else "unknown")
-        )
+        client_ip = get_client_ip(request)
 
         try:
             redis = await get_redis_pool()

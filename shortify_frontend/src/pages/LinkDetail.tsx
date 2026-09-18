@@ -14,6 +14,8 @@ import { QrCodeButton } from "../components/url/QrCodeButton"
 import { useUrlAnalytics } from "../hooks/useUrlAnalytics"
 import { useQuery } from "@tanstack/react-query"
 import { getUrlBySlug } from "../lib/api/urls"
+import { extractErrorMessage } from "../lib/api/client"
+import { EmptyState } from "../components/shared/EmptyState"
 
 export const LinkDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -23,7 +25,7 @@ export const LinkDetail: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   // Fetch URL metadata
-  const { data: urlData, isLoading: isUrlLoading } = useQuery({
+  const { data: urlData, isLoading: isUrlLoading, isError: isUrlError, error: urlError } = useQuery({
     queryKey: ["url", slug],
     queryFn: () => getUrlBySlug(slug || ""),
     enabled: !!slug,
@@ -47,7 +49,20 @@ export const LinkDetail: React.FC = () => {
           <span>Back to links</span>
         </button>
 
-        {isLoading || !urlData ? (
+        {isUrlError ? (
+          <EmptyState
+            title="Link not found"
+            description={extractErrorMessage(urlError)}
+            action={
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white text-xs font-medium transition-colors"
+              >
+                Back to links
+              </button>
+            }
+          />
+        ) : isLoading || !urlData ? (
           <AnalyticsSkeleton />
         ) : (
           <>

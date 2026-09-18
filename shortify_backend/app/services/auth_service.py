@@ -12,7 +12,6 @@ That makes it testable in isolation and reusable (e.g., in a CLI or background j
 """
 
 import uuid
-from datetime import timedelta
 
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,10 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.redis import RedisCache, token_blocklist_key
 from app.core.security import (
+    DUMMY_PASSWORD_HASH,
     create_access_token,
     create_refresh_token,
     decode_token,
-    get_token_jti,
+    get_revocation_claims,
     hash_password,
     verify_password,
 )
@@ -62,9 +62,10 @@ class AuthService:
         """Authenticate user and issue access + refresh tokens."""
         user = await self._user_repo.get_by_email(email)
 
-        # Constant-time check: always run verify_password to prevent timing attacks
-        # (even if user doesn't exist, we hash a dummy string)
-        if not user or not verify_password(password, user.hashed_password):
+        # Always run bcrypt (against a dummy hash for unknown emails) so response
+        # timing doesn't reveal whether an account exists.
+        password_ok = verify_password(password, user.hashed_password if user else DUMMY_PASSWORD_HASH)
+        if not user or not password_ok:
             raise CredentialsException("Invalid email or password")
 
         if not user.is_active:
@@ -99,6 +100,10 @@ class AuthService:
         if not user or not user.is_active:
             raise InvalidTokenException("User not found or inactive")
 
+        # Rotation: each refresh token is single-use, so a leaked one stops working
+        # as soon as the legitimate client refreshes.
+        await self._revoke(refresh_token)
+
         token_data = {"sub": str(user.id), "role": user.role}
         return TokenResponse(
             access_token=create_access_token(token_data),
@@ -106,7 +111,7 @@ class AuthService:
             expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         )
 
-    async def logout(self, access_token: str, refresh_token: str) -> None:
+    async def logout(self, access_token: str | None, refresh_token: str) -> None:
         """
         Revoke both tokens by adding their JTIs to the Redis blocklist.
 
@@ -115,15 +120,18 @@ class AuthService:
         By storing the JTI in Redis with TTL = token expiry, we effectively
         invalidate the token. The overhead is one Redis GET per authenticated request.
         """
-        for token in [access_token, refresh_token]:
-            jti = get_token_jti(token)
-            if jti:
-                # TTL matches the longer-lived token (refresh) so blocklist auto-cleans
-                await self._cache.set(
-                    token_blocklist_key(jti),
-                    "revoked",
-                    ttl=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-                )
+        for token in (access_token, refresh_token):
+            if token:
+                await self._revoke(token)
+
+    async def _revoke(self, token: str) -> None:
+        """Blocklist a token's JTI until the token would have expired anyway."""
+        claims = get_revocation_claims(token)
+        if not claims:
+            return
+        jti, seconds_left = claims
+        if seconds_left > 0:
+            await self._cache.set(token_blocklist_key(jti), "revoked", ttl=seconds_left)
 
     async def _is_token_revoked(self, jti: str) -> bool:
         return await self._cache.exists(token_blocklist_key(jti))

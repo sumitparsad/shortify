@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     def CORS_ORIGINS_LIST(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
+    # ── Proxy ─────────────────────────────────────────────────────────────────
+    # Number of trusted reverse proxies in front of the app (Render = 1). Each proxy
+    # appends to X-Forwarded-For, so the client IP is the Nth entry from the right;
+    # anything further left is client-supplied and spoofable. 0 = ignore the header.
+    TRUSTED_PROXY_HOPS: int = 1
+
     # ── Rate Limiting ─────────────────────────────────────────────────────────
     RATE_LIMIT_REQUESTS: int = 100
     RATE_LIMIT_WINDOW_SECONDS: int = 60

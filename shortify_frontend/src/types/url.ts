@@ -22,8 +22,8 @@ export interface URLCreate {
 
 export interface URLUpdate {
   long_url?: string
-  title?: string
-  expires_at?: string
+  title?: string | null // null clears the title
+  expires_at?: string | null // null removes the expiry
   is_active?: boolean
 }
 

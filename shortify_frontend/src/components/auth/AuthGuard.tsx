@@ -1,16 +1,14 @@
 import React, { useEffect } from "react"
 import { Navigate, useLocation } from "react-router-dom"
 import { useAuthStore } from "../../store/auth.store"
-import { apiClient } from "../../lib/api/client"
-import type { TokenResponse, UserResponse } from "../../types/auth"
+import { refreshSession } from "../../lib/api/client"
 
 interface AuthGuardProps {
   children: React.ReactNode
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
-  const { accessToken, isRehydrating, setSession, clearSession, setRehydrating, getRefreshToken } =
-    useAuthStore()
+  const { accessToken, isRehydrating, clearSession, setRehydrating, getRefreshToken } = useAuthStore()
   const location = useLocation()
 
   useEffect(() => {
@@ -25,17 +23,9 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
       }
 
       try {
-        const { data: tokenData } = await apiClient.post<TokenResponse>("/auth/refresh", {
-          refresh_token: refreshToken,
-        })
-
-        const { data: userData } = await apiClient.get<UserResponse>("/auth/me", {
-          headers: { Authorization: `Bearer ${tokenData.access_token}` },
-        })
-
-        if (isMounted) {
-          setSession(tokenData.access_token, tokenData.refresh_token, userData)
-        }
+        // Shared single-flight refresh: StrictMode's double effect and any concurrent
+        // 401 retries reuse one request, so the single-use refresh token isn't spent twice.
+        await refreshSession()
       } catch {
         if (isMounted) {
           clearSession()
@@ -50,7 +40,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     return () => {
       isMounted = false
     }
-  }, [accessToken, setSession, clearSession, setRehydrating, getRefreshToken])
+  }, [accessToken, clearSession, setRehydrating, getRefreshToken])
 
   if (isRehydrating) {
     return (
